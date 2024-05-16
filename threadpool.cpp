@@ -1,6 +1,7 @@
 #include "threadpool.h"
 
-#include <functional>
+#include <iostream>
+#include <thread>
 
 /// <summary>
 /// 线程池方法实现
@@ -34,7 +35,7 @@ void ThreadPool::setTaskQueMaxThreshHold(int threshhold)
 	taskQueMaxThreshHold_ = threshhold;
 }
 
-// 给线程池提交任务
+// 给线程池提交任务	用户调用该接口，传入任务对象，生产任务
 void ThreadPool::submitTask(std::shared_ptr<Task> sp)
 {
 }
@@ -46,10 +47,10 @@ void ThreadPool::start(int initThreadSize)
 	initThreadSize_ = initThreadSize;
 
 	// 创建线程对象
-	for (int i = 0; i < threads_.size(); i++)
+	for (int i = 0; i < initThreadSize_; i++)
 	{
 		// 创建thread线程对象的时候，把线程函数给到线程对象
-		threads_.emplace_back(new Thread(std::bind(ThreadPool::threadFunc(), this)));
+		threads_.emplace_back(new Thread(std::bind(&ThreadPool::threadFunc, this)));
 	}
 
 	// 启动所有线程
@@ -59,14 +60,27 @@ void ThreadPool::start(int initThreadSize)
 	}
 }
 
+// 定义线程函数	线程池的所有线程从任务队列里面消费任务
 void ThreadPool::threadFunc()
 {
+	std::cout << "begin threadFunc tid: " << std::this_thread::get_id() << std::endl;
+	std::cout << "end threadFunc tid: " << std::this_thread::get_id() << std::endl;
 }
 
 /// <summary>
 /// 线程方法实现
 /// </summary>
 
+Thread::Thread(ThreadFunc func)
+	: func_(func)
+{}
+
+Thread::~Thread()
+{}
+
 void Thread::start()
 {
+	// 创建一个线程来执行线程函数
+	std::thread t(func_);
+	t.detach(); // 设置分离线程
 }

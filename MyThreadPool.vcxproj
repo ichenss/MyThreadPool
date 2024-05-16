@@ -130,6 +130,7 @@
     <ClInclude Include="threadpool.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="test.cpp" />
     <ClCompile Include="threadpool.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
