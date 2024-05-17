@@ -38,6 +38,18 @@ void ThreadPool::setTaskQueMaxThreshHold(int threshhold)
 // 给线程池提交任务	用户调用该接口，传入任务对象，生产任务
 void ThreadPool::submitTask(std::shared_ptr<Task> sp)
 {
+	// 获取锁
+	std::unique_lock<std::mutex> lock(taskQueMtx_);
+
+	// 线程通信  等待任务队列有空余
+	notFull_.wait(lock, [&]()->bool { return taskQue_.size() < taskQueMaxThreshHold_; });
+
+	// 如果有空余，把任务放在任务队列中
+	taskQue_.emplace(sp);
+	taskSize_++;
+
+	// 新放了任务，任务队列肯定不空，notEmpty通知
+	notEmpty_.notify_all();
 }
 
 // 开启线程池
@@ -50,7 +62,8 @@ void ThreadPool::start(int initThreadSize)
 	for (int i = 0; i < initThreadSize_; i++)
 	{
 		// 创建thread线程对象的时候，把线程函数给到线程对象
-		threads_.emplace_back(new Thread(std::bind(&ThreadPool::threadFunc, this)));
+		auto ptr = std::make_unique<Thread>(std::bind(&ThreadPool::threadFunc, this));
+		threads_.emplace_back(std::move(ptr));
 	}
 
 	// 启动所有线程
