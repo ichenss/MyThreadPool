@@ -11,10 +11,7 @@ const int TASK_MAX_THRESHHOLD = 1024;
 
 // 构造
 ThreadPool::ThreadPool()
-	: initThreadSize_(0)
-	, taskSize_(0)
-	, taskQueMaxThreshHold_(TASK_MAX_THRESHHOLD)
-	, poolMode_(PoolMode::MODE_FIXED)
+	: initThreadSize_(0), taskSize_(0), taskQueMaxThreshHold_(TASK_MAX_THRESHHOLD), poolMode_(PoolMode::MODE_FIXED)
 {
 }
 
@@ -42,7 +39,15 @@ void ThreadPool::submitTask(std::shared_ptr<Task> sp)
 	std::unique_lock<std::mutex> lock(taskQueMtx_);
 
 	// 线程通信  等待任务队列有空余
-	notFull_.wait(lock, [&]()->bool { return taskQue_.size() < taskQueMaxThreshHold_; });
+	// 用户提交任务，最长不能阻塞超过1s，否则判断任务提交
+	if (!notFull_.wait_for(lock, std::chrono::seconds(1),
+						   [&]() -> bool
+						   { return taskQue_.size() < (size_t)taskQueMaxThreshHold_; }))
+	{
+		// 等待1s,条件依然没满足
+		std::cerr << "task queue is full, submit task fail" << std::endl;
+		return;
+	}
 
 	// 如果有空余，把任务放在任务队列中
 	taskQue_.emplace(sp);
@@ -76,8 +81,41 @@ void ThreadPool::start(int initThreadSize)
 // 定义线程函数	线程池的所有线程从任务队列里面消费任务
 void ThreadPool::threadFunc()
 {
-	std::cout << "begin threadFunc tid: " << std::this_thread::get_id() << std::endl;
-	std::cout << "end threadFunc tid: " << std::this_thread::get_id() << std::endl;
+	// std::cout << "begin threadFunc tid: " << std::this_thread::get_id() << std::endl;
+	// std::cout << "end threadFunc tid: " << std::this_thread::get_id() << std::endl;
+	for (;;)
+	{
+		std::shared_ptr<Task> task;
+		{
+			// 先获取锁
+			std::unique_lock<std::mutex> lock(taskQueMtx_);
+
+			// 等待notEmpty条件
+			notEmpty_.wait(lock, [&]() -> bool
+						   { return taskQue_.size() > 0; });
+
+			// 从任务队列中取一个任务出来
+			task= taskQue_.front();
+			taskQue_.pop();
+			taskSize_--;
+
+			// 如果依然有任务，通知其他线程
+			if (taskQue_.size() > 0)
+			{
+				notEmpty_.notify_all();
+			}
+
+			// 取出一个任务，进行通知
+			notFull_.notify_all();
+
+		}	// 出作用域释放锁
+
+		// 当前线程负责执行这个任务
+		if (task != nullptr)
+		{
+			task->run();
+		}
+	}
 }
 
 /// <summary>
@@ -86,10 +124,12 @@ void ThreadPool::threadFunc()
 
 Thread::Thread(ThreadFunc func)
 	: func_(func)
-{}
+{
+}
 
 Thread::~Thread()
-{}
+{
+}
 
 void Thread::start()
 {
