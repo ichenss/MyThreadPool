@@ -10,13 +10,66 @@
 #include <functional>
 
 /// <summary>
+/// Any类型，可以接收任意数据的类型
+/// </summary>
+class Any
+{
+public:
+	Any() = default;
+	~Any() = default;
+	Any(const Any&) = delete;
+	Any& operator=(const Any&) = delete;
+	Any(Any&&) = default;
+	Any& operator=(Any&&) = default;
+
+	template<typename T>
+	Any(T data) : base_(std::make_unique<Derive<T>>(data))
+	{}
+
+	// 提取data_数据
+	template<typename T>
+	T cast_()
+	{
+		// 基类指针  -》 派生类指针    RTTI
+		Derive<T>* pd = dynamic_cast<Derive<T>*>(base_.get());
+		if (pd == nullptr)
+		{
+			throw "type is unmatch!";
+		}
+		return pd->data_;
+	}
+private:
+	// 基类类型
+	class Base
+	{
+	public:
+		virtual ~Base() = default;
+	};
+
+	// 派生类类型
+	template<typename T>
+	class Derive : public Base
+	{
+	public:
+		Derive(T data) : data_(data)
+		{}
+
+	private:
+		T data_;	// 保存了任意的其他类型
+	};
+private:
+	// 基类指针
+	std::unique_ptr<Base> base_;
+};
+
+/// <summary>
 /// 任务抽象基类
 /// </summary>
 class Task
 {
 public:
 	// 用户可以自定义任意任务类型，继承于Task，重写run方法，实现自定义任务处理
-	virtual void run() = 0;
+	virtual Any run() = 0;
 };
 
 /// <summary>
