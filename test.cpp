@@ -4,23 +4,26 @@
 
 #include "threadpool.h"
 
+using uLong = unsigned long long;
 class MyTask : public Task
 {
 public:
-	MyTask(int begin, int end) 
+	MyTask(int begin, int end)
 		: begin_(begin), end_(end)
-	{} 
+	{
+	}
 
 	Any run()
 	{
 		std::cout << "tid: " << std::this_thread::get_id() << "begin!" << std::endl;
 		// std::this_thread::sleep_for(std::chrono::seconds(2));
-		int sum = 0;
-		for (int i = begin_; i <= end_; ++i)
+		uLong sum = 0;
+		for (uLong i = begin_; i <= end_; ++i)
 		{
 			sum += i;
 		}
 		std::cout << "tid: " << std::this_thread::get_id() << "end!" << std::endl;
+		return sum;
 	}
 
 private:
@@ -33,9 +36,27 @@ int main()
 	ThreadPool pool;
 	pool.start(4);
 
-	Result res = pool.submitTask(std::make_shared<MyTask>());
-	int r = res.get().cast_<int>();
-	
+	Result res1 = pool.submitTask(std::make_shared<MyTask>(1, 100000000));
+	Result res2 = pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
+	Result res3 = pool.submitTask(std::make_shared<MyTask>(200000001, 300000000));
+	uLong r1 = res1.get().cast_<uLong>();
+	uLong r2 = res2.get().cast_<uLong>();
+	uLong r3 = res3.get().cast_<uLong>();
+
+	/*
+	Master - Slave线程模型
+	分解-执行-合并
+	*/
+	std::cout << (r1 + r2 + r2) << std::endl;
+
+	uLong sum = 0;
+	for (int i = 1; i <= 300000000; ++i)
+	{
+		sum += i;
+	}
+
+	std::cout << sum << std::endl;
+
 	getchar();
 	return 0;
 }

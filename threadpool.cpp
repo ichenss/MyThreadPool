@@ -45,7 +45,7 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp)
 	{
 		// 等待1s,条件依然没满足
 		std::cerr << "task queue is full, submit task fail" << std::endl;
-		return;
+		return Result(sp, false);
 	}
 
 	// 如果有空余，把任务放在任务队列中
@@ -54,6 +54,8 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp)
 
 	// 新放了任务，任务队列肯定不空，notEmpty通知
 	notEmpty_.notify_all();
+
+	return Result(sp);
 }
 
 // 开启线程池

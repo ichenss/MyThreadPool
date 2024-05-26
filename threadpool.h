@@ -53,8 +53,6 @@ private:
 	public:
 		Derive(T data) : data_(data)
 		{}
-
-	private:
 		T data_;	// 保存了任意的其他类型
 	};
 private:
