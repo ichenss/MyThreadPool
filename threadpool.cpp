@@ -6,7 +6,6 @@
 /// <summary>
 /// 线程池方法实现
 /// </summary>
-
 const int TASK_MAX_THRESHHOLD = 1024;
 
 // 构造
@@ -33,7 +32,7 @@ void ThreadPool::setTaskQueMaxThreshHold(int threshhold)
 }
 
 // 给线程池提交任务	用户调用该接口，传入任务对象，生产任务
-void ThreadPool::submitTask(std::shared_ptr<Task> sp)
+Result ThreadPool::submitTask(std::shared_ptr<Task> sp)
 {
 	// 获取锁
 	std::unique_lock<std::mutex> lock(taskQueMtx_);
@@ -117,7 +116,8 @@ void ThreadPool::threadFunc()
 		// 当前线程负责执行这个任务
 		if (task != nullptr)
 		{
-			task->run();
+			// task->run();
+			task->exec();
 		}
 	}
 }
@@ -125,7 +125,6 @@ void ThreadPool::threadFunc()
 /// <summary>
 /// 线程方法实现
 /// </summary>
-
 Thread::Thread(ThreadFunc func)
 	: func_(func)
 {
@@ -140,4 +139,46 @@ void Thread::start()
 	// 创建一个线程来执行线程函数
 	std::thread t(func_);
 	t.detach(); // 设置分离线程
+}
+
+/// <summary>
+/// Task方法实现
+/// </summary>
+Task::Task()
+	: result_(nullptr)
+{
+
+}
+
+void Task::exec()
+{
+	if (result_ != nullptr) result_->setVal(run());	// 这里发生多态调用
+}
+
+void Task::setResult(Result *res)
+{
+	result_ = res;
+}
+
+/// <summary>
+/// Result方法实现
+/// </summary>
+Result::Result(std::shared_ptr<Task> task, bool isValid)
+		: isValid_(isValid)
+		, task_(task)
+{
+	task_->setResult(this);
+}
+
+Any Result::get()
+{
+	if (!isValid_) return "";
+	sem_.wait();	// task任务如果没有执行完，这里会阻塞用户的线程
+	return std::move(any_);
+}
+
+void Result::setVal(Any any)
+{
+	this->any_ = std::move(any);
+	sem_.post();	// 已经获取的任务的返回值，增加信号量资源
 }

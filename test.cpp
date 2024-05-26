@@ -33,10 +33,9 @@ int main()
 	ThreadPool pool;
 	pool.start(4);
 
-	pool.submitTask(std::make_shared<MyTask>());
-	pool.submitTask(std::make_shared<MyTask>());
-	pool.submitTask(std::make_shared<MyTask>());
-
+	Result res = pool.submitTask(std::make_shared<MyTask>());
+	int r = res.get().cast_<int>();
+	
 	getchar();
 	return 0;
 }
