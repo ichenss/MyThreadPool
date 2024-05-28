@@ -34,6 +34,7 @@ private:
 int main()
 {
 	ThreadPool pool;
+	pool.setMode(PoolMode::MODE_CACHED);
 	pool.start(4);
 
 	Result res1 = pool.submitTask(std::make_shared<MyTask>(1, 100000000));

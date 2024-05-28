@@ -173,6 +173,9 @@ public:
 
 	// 设置任务队列上限阈值
 	void setTaskQueMaxThreshHold(int threshhold);
+
+	// 设置线程池cached模式下线程阈值
+	void setThreadSizeThreshHold(int threshhold);
 	
 	// 给线程池提交任务
 	Result submitTask(std::shared_ptr<Task> sp);
@@ -187,9 +190,14 @@ private:
 	// 定义线程函数
 	void threadFunc();
 
+	bool checkRunningState() const;
+
 private:
 	std::vector<std::unique_ptr<Thread>> threads_; // 线程列表
 	size_t initThreadSize_; // 初始的线程数量
+	std::atomic_int curThreadSize_;	// 当前线程池线程数量
+	int threadSizeThreshHold_;	// 线程数量上限阈值
+	std::atomic_int idleThreadSize_;	// 空闲线程数量
 
 	std::queue<std::shared_ptr<Task>> taskQue_; // 任务队列
 	std::atomic_uint taskSize_; // 任务的数量
@@ -200,7 +208,7 @@ private:
 	std::condition_variable notEmpty_; // 表示任务队列不空
 
 	PoolMode poolMode_; // 当前线程池工作模式
+	std::atomic_bool isPoolRunning_;	// 线程池运行状态
 };
-
 
 #endif // !THREADPOOL_H

@@ -7,10 +7,18 @@
 /// 线程池方法实现
 /// </summary>
 const int TASK_MAX_THRESHHOLD = 1024;
+const int THREAD_MAX_THRESHHOLD = 10;
 
 // 构造
 ThreadPool::ThreadPool()
-	: initThreadSize_(0), taskSize_(0), taskQueMaxThreshHold_(TASK_MAX_THRESHHOLD), poolMode_(PoolMode::MODE_FIXED)
+	: initThreadSize_(0)
+	, taskSize_(0)
+	, idleThreadSize_(0)
+	, curThreadSize_(0)
+	, taskQueMaxThreshHold_(TASK_MAX_THRESHHOLD)
+	, threadSizeThreshHold_(THREAD_MAX_THRESHHOLD)
+	, poolMode_(PoolMode::MODE_FIXED)
+	, isPoolRunning_(false)
 {
 }
 
@@ -22,13 +30,25 @@ ThreadPool::~ThreadPool()
 // 设置线程池工作模式
 void ThreadPool::setMode(PoolMode mode)
 {
+	if (checkRunningState()) return;
 	poolMode_ = mode;
 }
 
 // 设置任务队列上限阈值
 void ThreadPool::setTaskQueMaxThreshHold(int threshhold)
 {
+	if (checkRunningState()) return;
 	taskQueMaxThreshHold_ = threshhold;
+}
+
+// 设置线程池cached模式下线程阈值
+void ThreadPool::setThreadSizeThreshHold(int threshhold)
+{
+	if (checkRunningState()) return;
+	if (poolMode_ == PoolMode::MODE_CACHED)
+	{
+		threadSizeThreshHold_ = threshhold;
+	}
 }
 
 // 给线程池提交任务	用户调用该接口，传入任务对象，生产任务
@@ -55,14 +75,27 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp)
 	// 新放了任务，任务队列肯定不空，notEmpty通知
 	notEmpty_.notify_all();
 
+	// cached模式
+	if (poolMode_ == PoolMode::MODE_CACHED
+		&& taskSize_ < idleThreadSize_
+		&& curThreadSize_ < threadSizeThreshHold_)
+	{
+		 auto ptr = std::make_shared<Thread>(std::bind(&ThreadPool::threadFunc, this));
+		 threads_.emplace_back(std::move(ptr));
+	}
+
 	return Result(sp);
 }
 
 // 开启线程池
 void ThreadPool::start(int initThreadSize)
 {
+	// 设置线程池运行状态
+	isPoolRunning_ = true;
+
 	// 记录线程初始个数
 	initThreadSize_ = initThreadSize;
+	curThreadSize_ = initThreadSize;
 
 	// 创建线程对象
 	for (int i = 0; i < initThreadSize_; i++)
@@ -76,6 +109,7 @@ void ThreadPool::start(int initThreadSize)
 	for (int i = 0; i < threads_.size(); i++)
 	{
 		threads_[i]->start();
+		idleThreadSize_++;
 	}
 }
 
@@ -96,6 +130,8 @@ void ThreadPool::threadFunc()
 			// 等待notEmpty条件
 			notEmpty_.wait(lock, [&]() -> bool
 						   { return taskQue_.size() > 0; });
+
+			idleThreadSize_--;
 
 			std::cout << "tid: " << std::this_thread::get_id() << "task OK..." << std::endl;
 
@@ -121,7 +157,13 @@ void ThreadPool::threadFunc()
 			// task->run();
 			task->exec();
 		}
+		idleThreadSize_++;
 	}
+}
+
+bool ThreadPool::checkRunningState() const
+{
+	return isPoolRunning_;
 }
 
 /// <summary>
