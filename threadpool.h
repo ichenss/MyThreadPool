@@ -8,6 +8,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
+#include <unordered_map>
 
 /// <summary>
 /// Any类型，可以接收任意数据的类型
@@ -145,7 +146,7 @@ class Thread
 {
 public:
 	// 线程函数对象类型
-	using ThreadFunc = std::function<void()>;
+	using ThreadFunc = std::function<void(int)>;
 	// 线程构造
 	Thread(ThreadFunc func);
 	// 线程析构
@@ -153,8 +154,12 @@ public:
 	// 启动线程
 	void start();
 
+	int getId()const;
+
 private:
 	ThreadFunc func_;
+	static int generateId_;
+	int threadId_;
 };
 
 /// <summary>
@@ -188,12 +193,13 @@ public:
 
 private:
 	// 定义线程函数
-	void threadFunc();
+	void threadFunc(int threadid);
 
 	bool checkRunningState() const;
 
 private:
-	std::vector<std::unique_ptr<Thread>> threads_; // 线程列表
+	// std::vector<std::unique_ptr<Thread>> threads_; 
+	std::unordered_map<int, std::unique_ptr<Thread>> threads_;	// 线程列表
 	size_t initThreadSize_; // 初始的线程数量
 	std::atomic_int curThreadSize_;	// 当前线程池线程数量
 	int threadSizeThreshHold_;	// 线程数量上限阈值
