@@ -16,7 +16,7 @@ public:
 	Any run()
 	{
 		std::cout << "tid: " << std::this_thread::get_id() << "begin!" << std::endl;
-		// std::this_thread::sleep_for(std::chrono::seconds(2));
+		std::this_thread::sleep_for(std::chrono::seconds(3));
 		uLong sum = 0;
 		for (uLong i = begin_; i <= end_; ++i)
 		{
@@ -40,6 +40,9 @@ int main()
 	Result res1 = pool.submitTask(std::make_shared<MyTask>(1, 100000000));
 	Result res2 = pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
 	Result res3 = pool.submitTask(std::make_shared<MyTask>(200000001, 300000000));
+	pool.submitTask(std::make_shared<MyTask>(200000001, 300000000));
+	pool.submitTask(std::make_shared<MyTask>(200000001, 300000000));
+	pool.submitTask(std::make_shared<MyTask>(200000001, 300000000));
 	uLong r1 = res1.get().cast_<uLong>();
 	uLong r2 = res2.get().cast_<uLong>();
 	uLong r3 = res3.get().cast_<uLong>();
@@ -49,14 +52,6 @@ int main()
 	分解-执行-合并
 	*/
 	std::cout << (r1 + r2 + r2) << std::endl;
-
-	uLong sum = 0;
-	for (int i = 1; i <= 300000000; ++i)
-	{
-		sum += i;
-	}
-
-	std::cout << sum << std::endl;
 
 	getchar();
 	return 0;

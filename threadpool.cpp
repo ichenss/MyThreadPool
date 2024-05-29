@@ -6,9 +6,9 @@
 /// <summary>
 /// 线程池方法实现
 /// </summary>
-const int TASK_MAX_THRESHHOLD = 1024;
+const int TASK_MAX_THRESHHOLD = INT32_MAX;
 const int THREAD_MAX_THRESHHOLD = 10;
-const int THREAD_MAX_IDLE_TIME = 60;
+const int THREAD_MAX_IDLE_TIME = 10;
 
 // 构造
 ThreadPool::ThreadPool()
@@ -73,13 +73,19 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp)
 	notEmpty_.notify_all();
 
 	// cached模式
-	if (poolMode_ == PoolMode::MODE_CACHED && taskSize_ < idleThreadSize_ && curThreadSize_ < threadSizeThreshHold_)
+	if (poolMode_ == PoolMode::MODE_CACHED && taskSize_ > idleThreadSize_ && curThreadSize_ < threadSizeThreshHold_)
 	{
+		// 创建新线程
 		auto ptr = std::make_unique<Thread>(std::bind(&ThreadPool::threadFunc
 														, this
 														, std::placeholders::_1));
 		int threadId = ptr->getId();
 		threads_.emplace(threadId, std::move(ptr));
+		// 启动线程
+		threads_[threadId]->start();
+		// 修改线程数量变量
+		curThreadSize_++;
+		idleThreadSize_++;
 	}
 
 	return Result(sp);
@@ -130,7 +136,7 @@ void ThreadPool::threadFunc(int threadid)
 
 			if (poolMode_ == PoolMode::MODE_CACHED)
 			{
-				while (taskQue_.size() > 0)
+				while (taskQue_.size() == 0)
 				{
 					if (std::cv_status::timeout == notEmpty_.wait_for(lock, std::chrono::seconds(1)))
 					{
@@ -139,6 +145,11 @@ void ThreadPool::threadFunc(int threadid)
 						if (dur.count() >= THREAD_MAX_IDLE_TIME && curThreadSize_ > initThreadSize_)
 						{
 							// 回收线程
+							threads_.erase(threadid);
+							curThreadSize_--;
+							idleThreadSize_--;
+							std::cout << "thread id: " << std::this_thread::get_id() << "exit!" << std::endl;
+							return;
 						}
 					}
 				}
