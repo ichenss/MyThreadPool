@@ -33,25 +33,27 @@ private:
 
 int main()
 {
-	ThreadPool pool;
-	pool.setMode(PoolMode::MODE_CACHED);
-	pool.start(4);
+	{
+		ThreadPool pool;
+		pool.setMode(PoolMode::MODE_CACHED);
+		pool.start(4);
 
-	Result res1 = pool.submitTask(std::make_shared<MyTask>(1, 100000000));
-	Result res2 = pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
-	Result res3 = pool.submitTask(std::make_shared<MyTask>(200000001, 300000000));
-	pool.submitTask(std::make_shared<MyTask>(200000001, 300000000));
-	pool.submitTask(std::make_shared<MyTask>(200000001, 300000000));
-	pool.submitTask(std::make_shared<MyTask>(200000001, 300000000));
-	uLong r1 = res1.get().cast_<uLong>();
-	uLong r2 = res2.get().cast_<uLong>();
-	uLong r3 = res3.get().cast_<uLong>();
+		Result res1 = pool.submitTask(std::make_shared<MyTask>(1, 100000000));
+		Result res2 = pool.submitTask(std::make_shared<MyTask>(100000001, 200000000));
+		Result res3 = pool.submitTask(std::make_shared<MyTask>(200000001, 300000000));
+		pool.submitTask(std::make_shared<MyTask>(200000001, 300000000));
+		pool.submitTask(std::make_shared<MyTask>(200000001, 300000000));
+		pool.submitTask(std::make_shared<MyTask>(200000001, 300000000));
+		uLong r1 = res1.get().cast_<uLong>();
+		uLong r2 = res2.get().cast_<uLong>();
+		uLong r3 = res3.get().cast_<uLong>();
 
-	/*
-	Master - Slave线程模型
-	分解-执行-合并
-	*/
-	std::cout << (r1 + r2 + r2) << std::endl;
+		/*
+		Master - Slave线程模型
+		分解-执行-合并
+		*/
+		std::cout << (r1 + r2 + r2) << std::endl;
+	}
 
 	getchar();
 	return 0;
