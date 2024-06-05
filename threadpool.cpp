@@ -23,7 +23,7 @@ ThreadPool::ThreadPool()
 ThreadPool::~ThreadPool()
 {
 	isPoolRunning_ = false;
-	
+
 	// 等待线程池里所有线程返回
 	std::unique_lock<std::mutex> lock(taskQueMtx_);
 	notEmpty_.notify_all();
@@ -131,7 +131,7 @@ void ThreadPool::start(int initThreadSize)
 void ThreadPool::threadFunc(int threadid)
 {
 	auto lastTime = std::chrono::high_resolution_clock().now();
-	while (isPoolRunning_)
+	for (;;)
 	{
 		std::shared_ptr<Task> task;
 		{
@@ -140,8 +140,17 @@ void ThreadPool::threadFunc(int threadid)
 
 			std::cout << "tid: " << std::this_thread::get_id() << "tring task..." << std::endl;
 
-			while (isPoolRunning_ && taskQue_.size() == 0)
+			while (taskQue_.size() == 0)
 			{
+				if (!isPoolRunning_)
+				{
+					threads_.erase(threadid);
+					exitCond_.notify_all();
+					std::cout << "thread id: " << std::this_thread::get_id() << "exit!" 
+						<< std::endl;
+					return;	// 线程函数结束，线程结束
+				}
+
 				if (poolMode_ == PoolMode::MODE_CACHED)
 				{
 					if (std::cv_status::timeout == notEmpty_.wait_for(lock, std::chrono::seconds(1)))
@@ -164,18 +173,7 @@ void ThreadPool::threadFunc(int threadid)
 					// 等待notEmpty条件
 					notEmpty_.wait(lock);
 				}
-
-				// 优化掉了
-				// if (!isPoolRunning_)
-				// {
-				// 	threads_.erase(threadid);
-				// 	exitCond_.notify_all();
-				// 	std::cout << "thread id: " << std::this_thread::get_id() << "exit!" << std::endl;
-				// 	return;
-				// }
 			}
-
-			if (!isPoolRunning_) break;
 
 			idleThreadSize_--;
 
@@ -206,9 +204,6 @@ void ThreadPool::threadFunc(int threadid)
 		idleThreadSize_++;
 		lastTime = std::chrono::high_resolution_clock().now();
 	}
-	threads_.erase(threadid);
-	exitCond_.notify_all();
-	std::cout << "thread id: " << std::this_thread::get_id() << "exit!" << std::endl;
 }
 
 bool ThreadPool::checkRunningState() const
