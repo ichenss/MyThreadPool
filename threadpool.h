@@ -9,6 +9,7 @@
 #include <condition_variable>
 #include <functional>
 #include <unordered_map>
+#include <thread>
 
 /// <summary>
 /// Any类型，可以接收任意数据的类型
@@ -186,7 +187,7 @@ public:
 	Result submitTask(std::shared_ptr<Task> sp);
 
 	// 开启线程池
-	void start(int initThreadSize = 4);
+	void start(int initThreadSize = std::thread::hardware_concurrency());
 
 	ThreadPool(const ThreadPool&) = delete;
 	ThreadPool& operator=(const ThreadPool&) = delete;

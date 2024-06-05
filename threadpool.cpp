@@ -23,9 +23,10 @@ ThreadPool::ThreadPool()
 ThreadPool::~ThreadPool()
 {
 	isPoolRunning_ = false;
-	notEmpty_.notify_all();
+	
 	// 等待线程池里所有线程返回
 	std::unique_lock<std::mutex> lock(taskQueMtx_);
+	notEmpty_.notify_all();
 	exitCond_.wait(lock, [&]() -> bool
 				   { return threads_.size() == 0; });
 }
@@ -139,7 +140,7 @@ void ThreadPool::threadFunc(int threadid)
 
 			std::cout << "tid: " << std::this_thread::get_id() << "tring task..." << std::endl;
 
-			while (taskQue_.size() == 0)
+			while (isPoolRunning_ && taskQue_.size() == 0)
 			{
 				if (poolMode_ == PoolMode::MODE_CACHED)
 				{
@@ -164,14 +165,17 @@ void ThreadPool::threadFunc(int threadid)
 					notEmpty_.wait(lock);
 				}
 
-				if (!isPoolRunning_)
-				{
-					threads_.erase(threadid);
-					exitCond_.notify_all();
-					std::cout << "thread id: " << std::this_thread::get_id() << "exit!" << std::endl;
-					return;
-				}
+				// 优化掉了
+				// if (!isPoolRunning_)
+				// {
+				// 	threads_.erase(threadid);
+				// 	exitCond_.notify_all();
+				// 	std::cout << "thread id: " << std::this_thread::get_id() << "exit!" << std::endl;
+				// 	return;
+				// }
 			}
+
+			if (!isPoolRunning_) break;
 
 			idleThreadSize_--;
 
