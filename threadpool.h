@@ -68,12 +68,16 @@ private:
 class Semaphore
 {
 public:
-	Semaphore(int limit = 0) : resLimit_(limit)
+	Semaphore(int limit = 0) : resLimit_(limit), isExit_(false)
 	{}
-	~Semaphore() = default;
+	~Semaphore()
+	{
+		isExit_ = true;
+	}
 	// 获取一个信号量资源
 	void wait()
 	{
+		if (isExit_) return;
 		std::unique_lock<std::mutex> lock(mtx_);
 		cond_.wait(lock, [&]()->bool{
 			return resLimit_ > 0;
@@ -83,11 +87,13 @@ public:
 	// 增加一个信号量资源
 	void post()
 	{
+		if (isExit_) return;
 		std::unique_lock<std::mutex> lock(mtx_);
 		resLimit_++;
 		cond_.notify_all();
 	}
 private:
+	std::atomic_bool isExit_;
 	int resLimit_;
 	std::mutex mtx_;
 	std::condition_variable cond_;
