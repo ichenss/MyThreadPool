@@ -144,7 +144,9 @@ public:
 				[]()->RType{ return RType(); }
 			);
 			(*task)();
-			return task->get_future();
+			// return task->get_future(); 会报Broken Promise错误
+			std::future<RType> result = task->get_future();
+			return result;
 		}
 
 		// 如果有空余，把任务放在任务队列中
